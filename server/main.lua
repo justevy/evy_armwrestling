@@ -81,7 +81,9 @@ AddEventHandler('evy_arm:disband_sv', function(position)
                 if sessions[i].place2 ~= 0 then
                     TriggerClientEvent('evy_arm:reset_cl', sessions[i].place2)
                 end
-                    resetSession(i)
+                sessions[i].place1 = 0
+                sessions[i].place2 = 0
+                sessions[i].started = false
                 break
             end
 
