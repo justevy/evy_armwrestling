@@ -83,6 +83,7 @@ AddEventHandler('evy_arm:disband_sv', function(position)
                 end
                 sessions[i].place1 = 0
                 sessions[i].place2 = 0
+                sessions[i].grade = 0.5
                 sessions[i].started = false
                 break
             end
