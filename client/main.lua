@@ -1,6 +1,6 @@
 
 
-Citizen.CreateThread(function()
+CreateThread(function()
 if globalConfig.showBlipOnMap then
   for _, info in pairs(globalConfig.props) do
     info.blip = AddBlipForCoord(info.x, info.y, info.z)
@@ -20,35 +20,47 @@ local place = 0
 local started = false
 local grade = 0.5
 local disabledControl = 0
+local sleep = true
 
-Citizen.CreateThread(function()
+CreateThread(function()
 	while true do
 		Wait(5000)
+    sleep = true
+    local playercoords = GetEntityCoords(PlayerPedId())
     for i, modelConfig in pairs(globalConfig.props) do
-      if Vdist(GetEntityCoords(PlayerPedId()), modelConfig.x, modelConfig.y, modelConfig.z) < 50 then
-        thisTable = GetClosestObjectOfType(modelConfig.x, modelConfig.y, modelConfig.z, 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
-        if DoesEntityExist(thisTable) then
-          SetEntityHeading(thisTable)
-          PlaceObjectOnGroundProperly(thisTable)
-        else
-          thisTable = CreateObject(GetHashKey(modelConfig.model), modelConfig.x, modelConfig.y, modelConfig.z, false, false, false)
-          SetEntityHeading(thisTable)
-          PlaceObjectOnGroundProperly(thisTable)
-        end
-      elseif Vdist(GetEntityCoords(PlayerPedId()), modelConfig.x, modelConfig.y, modelConfig.z) >= 50 then
-        thisTable = GetClosestObjectOfType(modelConfig.x, modelConfig.y, modelConfig.z, 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
+      local dist = #(modelConfig.coords - playercoords)
+      if dist < 50 then
+        sleep = false
+        thisTable = GetClosestObjectOfType(modelConfig.coords.x, modelConfig.coords.y, modelConfig.coords.z, 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
+          if DoesEntityExist(thisTable) then
+            SetEntityHeading(thisTable)
+            PlaceObjectOnGroundProperly(thisTable)
+          else
+            if not modelConfig.entity or ( modelConfig.entity and not DoesEntityExist(modelConfig.entity) )then 
+              modelConfig.entity = CreateObject(GetHashKey(modelConfig.model), modelConfig.coords.x, modelConfig.coords.y, modelConfig.coords.z, false, false, false)
+              SetEntityHeading(modelConfig.entity)
+              PlaceObjectOnGroundProperly(modelConfig.entity)
+            end
+          end
+      elseif dist >= 50 then
+        thisTable = GetClosestObjectOfType(modelConfig.coords.x, modelConfig.coords.y, modelConfig.coords.z, 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
         if DoesEntityExist(thisTable) then
           DeleteEntity(thisTable)
         end
+        modelConfig.entity = nil
       end
     end		
 	end
 end)
 
 
-Citizen.CreateThread(function()
+CreateThread(function()
   while true do
-      Wait(0)
+    local wait = 0
+      if sleep then
+        wait = 1000 
+      end
+
 
       if IsControlJustPressed(0, 38) and place == 0 then
         checkFunction()
@@ -87,8 +99,9 @@ Citizen.CreateThread(function()
         DisableControlAction(2, 246, true)
 
     end
-
+    Wait(wait)
   end
+ 
 end)
 
 function notify(msg)
@@ -131,11 +144,11 @@ end
 
 
 function checkFunction()
+  local coords = GetEntityCoords(PlayerPedId())
   for i, modelConfig in pairs(globalConfig.props) do
-    local table = GetClosestObjectOfType(GetEntityCoords(PlayerPedId()), 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
+    local table = GetClosestObjectOfType(coords, 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
     if DoesEntityExist(table) then
-      local position = GetEntityCoords(PlayerPedId())
-      TriggerServerEvent('evy_arm:check_sv', position)
+      TriggerServerEvent('evy_arm:check_sv', coords)
       break
     end
   end
@@ -152,10 +165,8 @@ RegisterNetEvent('evy_arm:start_cl')
 AddEventHandler('evy_arm:start_cl', function()
   started = true
   if place == 1 then
-
     disabledControl = 2
     timer()
-
     PlayAnim(PlayerPedId(), "mini@arm_wrestling", "sweep_a", 1)
     SetEntityAnimSpeed(PlayerPedId(), "mini@arm_wrestling", "sweep_a", 0.0)
     SetEntityAnimCurrentTime(PlayerPedId(), "mini@arm_wrestling", "sweep_a", grade)
@@ -219,10 +230,10 @@ AddEventHandler('evy_arm:start_cl', function()
     end
 
     if grade <= 0.10 then
-      PlayAnim(PlayerPedId(), "mini@arm_wrestling", "win_a_ped_a", 2)
+      PlayAnim(ped, "mini@arm_wrestling", "win_a_ped_a", 2)
       notify("~g~" .. text[globalConfig.language]['win'])
     elseif grade >= 0.90 then
-      PlayAnim(PlayerPedId(), "mini@arm_wrestling", "win_a_ped_b", 2)
+      PlayAnim(ped, "mini@arm_wrestling", "win_a_ped_b", 2)
       notify("~r~" .. text[globalConfig.language]['lose'])
     end
     Wait(4000)
@@ -236,27 +247,28 @@ RegisterNetEvent('evy_arm:check_cl')
 AddEventHandler('evy_arm:check_cl', function(args)
   local table = 0
   if args == 'place1' then
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
     place = 1
 
     for i, modelConfig in pairs(globalConfig.props) do
-      table = GetClosestObjectOfType(GetEntityCoords(PlayerPedId()), 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
+      table = GetClosestObjectOfType(coords, 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
       if DoesEntityExist(table) then
         break
       end
     end
     disabledControl = 2
 
-    SetEntityNoCollisionEntity(PlayerPedId(), table, false)
-    --SetEntityHeading(table, 0.0)
-    SetEntityHeading(PlayerPedId(), GetEntityHeading(table))
+    SetEntityNoCollisionEntity(ped, table, false)
+    SetEntityHeading(ped, GetEntityHeading(table))
     Wait(100)
-    SetEntityCoords(PlayerPedId(), GetOffsetFromEntityInWorldCoords(table, -0.20, 0.0, 0.0).x, GetOffsetFromEntityInWorldCoords(table, 0.0, -0.65, 0.0).y, GetEntityCoords(PlayerPedId()).z-1)
-    FreezeEntityPosition(PlayerPedId(), true)
-    PlayAnim(PlayerPedId(), "mini@arm_wrestling","aw_ig_intro_alt1_a", 2)
+    SetEntityCoords(ped, GetOffsetFromEntityInWorldCoords(table, -0.20, 0.0, 0.0).x, GetOffsetFromEntityInWorldCoords(table, 0.0, -0.65, 0.0).y, coords.z-1)
+    FreezeEntityPosition(ped, true)
+    PlayAnim(ped, "mini@arm_wrestling","aw_ig_intro_alt1_a", 2)
     while ( GetEntityAnimCurrentTime(PlayerPedId(), "mini@arm_wrestling", "aw_ig_intro_alt1_a") < 0.95 ) do
       Wait(0)
     end
-    PlayAnim(PlayerPedId(), "mini@arm_wrestling", "nuetral_idle_a", 1)
+    PlayAnim(ped, "mini@arm_wrestling", "nuetral_idle_a", 1)
     disabledControl = 1
 
     while not started do
@@ -265,46 +277,49 @@ AddEventHandler('evy_arm:check_cl', function(args)
       
       alert(text[globalConfig.language]['wait'])
       
-      if IsControlPressed(2, 73) or IsPedRagdoll(PlayerPedId()) or IsControlPressed(2, 200) or IsControlPressed(2, 214) then
-        SetEntityNoCollisionEntity(PlayerPedId(), table, true)
+      if IsControlPressed(2, 73) or IsPedRagdoll(ped) or IsControlPressed(2, 200) or IsControlPressed(2, 214) then
+        SetEntityNoCollisionEntity(ped, table, true)
         TriggerServerEvent('evy_arm:disband_sv', GetEntityCoords(PlayerPedId()))
         return
       end
 
     end
   elseif args == 'place2' then
+    local ped = PlayerPedId()
+    local coords = GetEntityCoords(ped)
 
     place = 2
     for i, modelConfig in pairs(globalConfig.props) do
-      table = GetClosestObjectOfType(GetEntityCoords(PlayerPedId()), 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
+      table = GetClosestObjectOfType(coords, 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
       if DoesEntityExist(table) then
         break
       end
     end
     disabledControl = 2
 
-    SetEntityNoCollisionEntity(PlayerPedId(), table, false)
+    SetEntityNoCollisionEntity(ped, table, false)
     --SetEntityHeading(table, 0.0)
-    SetEntityHeading(PlayerPedId(), GetEntityHeading(table)-180)
+    SetEntityHeading(ped, GetEntityHeading(table)-180)
     Wait(100)
-    SetEntityCoords(PlayerPedId(), GetOffsetFromEntityInWorldCoords(table, 0.0, 0.0, 0.0).x, GetOffsetFromEntityInWorldCoords(table, 0.0, 0.50, 0.0).y, GetEntityCoords(PlayerPedId()).z-1)
+    SetEntityCoords(ped, GetOffsetFromEntityInWorldCoords(table, 0.0, 0.0, 0.0).x, GetOffsetFromEntityInWorldCoords(table, 0.0, 0.50, 0.0).y, coords.z-1)
     
-    FreezeEntityPosition(PlayerPedId(), true)
-    PlayAnim(PlayerPedId(), "mini@arm_wrestling","aw_ig_intro_alt1_b", 2)
+    FreezeEntityPosition(ped, true)
+    PlayAnim(ped, "mini@arm_wrestling","aw_ig_intro_alt1_b", 2)
     while ( GetEntityAnimCurrentTime(PlayerPedId(), "mini@arm_wrestling", "aw_ig_intro_alt1_b") < 0.95 ) do
       Wait(0)
     end
-    PlayAnim(PlayerPedId(), "mini@arm_wrestling", "nuetral_idle_b", 1)
+    PlayAnim(ped, "mini@arm_wrestling", "nuetral_idle_b", 1)
     disabledControl = 1
     
     while not started do
+      local pedloop = PlayerPedId()
       
       Wait(0)
       alert(text[globalConfig.language]['wait'])
           
-      if IsControlPressed(2, 73) or IsPedRagdoll(PlayerPedId()) or IsControlPressed(2, 200) or IsControlPressed(2, 214) then
-        SetEntityNoCollisionEntity(PlayerPedId(), table, true)
-        TriggerServerEvent('evy_arm:disband_sv', GetEntityCoords(PlayerPedId()))
+      if IsControlPressed(2, 73) or IsPedRagdoll(pedloop) or IsControlPressed(2, 200) or IsControlPressed(2, 214) then
+        SetEntityNoCollisionEntity(pedloop, table, true)
+        TriggerServerEvent('evy_arm:disband_sv', GetEntityCoords(pedloop))
         return
       end
 
@@ -320,19 +335,20 @@ end)
 
 RegisterNetEvent('evy_arm:reset_cl')
 AddEventHandler('evy_arm:reset_cl', function()
+  local ped = PlayerPedId()
   for i, modelConfig in pairs(globalConfig.props) do
-    local tableId = GetClosestObjectOfType(GetEntityCoords(PlayerPedId()), 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
+    local tableId = GetClosestObjectOfType(GetEntityCoords(ped), 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
     if DoesEntityExist(tableId) then
-      SetEntityNoCollisionEntity(PlayerPedId(), tableId, true)
+      SetEntityNoCollisionEntity(ped, tableId, true)
       break
     end
   end
-  ClearPedTasks(PlayerPedId())
+  ClearPedTasks(ped)
   place = 0
   started = false
   grade = 0.5
   disabledControl = 0
-  FreezeEntityPosition(PlayerPedId(), false)
+  FreezeEntityPosition(ped, false)
   
 end)
 
@@ -379,3 +395,23 @@ N_0x4e096588b13ffeca(jus)
 DrawText(x - 0.1+w, y - 0.02+h)
 end
 
+
+-- on resource stop
+AddEventHandler('onResourceStop', function(resource)
+  if resource == GetCurrentResourceName() then
+    local ped = PlayerPedId()
+    for i, modelConfig in pairs(globalConfig.props) do
+      local tableId = GetClosestObjectOfType(GetEntityCoords(ped), 1.5, GetHashKey(modelConfig.model), 0, 0, 0)
+      if DoesEntityExist(tableId) then
+        DeleteEntity(tableId)
+        break
+      end
+    end
+    ClearPedTasks(ped)
+    place = 0
+    started = false
+    grade = 0.5
+    disabledControl = 0
+    FreezeEntityPosition(ped, false)
+  end
+end)
