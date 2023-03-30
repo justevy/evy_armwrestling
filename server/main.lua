@@ -12,9 +12,9 @@ RegisterNetEvent('evy_arm:check_sv')
 AddEventHandler('evy_arm:check_sv', function(position)
     local a, b, c = table.unpack(position)
     for i, props in pairs(globalConfig.props) do
-        local x = a - props.x
-        local y = b - props.y
-        local z = c - props.z
+        local x = a - props.coords.x
+        local y = b - props.coords.y
+        local z = c - props.coords.z
 
         if #vec3(x, y, z) < 1.5 then
             if sessions[i].place1 == 0 and not sessions[i].started then
@@ -53,7 +53,6 @@ AddEventHandler('evy_arm:updategrade_sv', function(gradeUpValue)
             elseif props.grade >= 0.90 then
                 props.grade = 999
             end
-            
             TriggerClientEvent('evy_arm:updategrade_cl', props.place1, props.grade)
             TriggerClientEvent('evy_arm:updategrade_cl', props.place2, props.grade)
             break
@@ -68,9 +67,9 @@ AddEventHandler('evy_arm:disband_sv', function(position)
     local a, b, c = table.unpack(position)
    
     for i, props in pairs(globalConfig.props) do
-        local x = a - props.x
-        local y = b - props.y
-        local z = c - props.z
+        local x = a - props.coords.x
+        local y = b - props.coords.y
+        local z = c - props.coords.z
         local _source = source
         if #vec3(x, y, z) < 1.5 then
             if sessions[i].place1 == source or sessions[i].place2 == source then
@@ -97,5 +96,22 @@ end)
 function resetSession(i)
     sessions[i] = {place1 = 0, place2 = 0, started = false, grade = 0.5}
 end
+
+-- on resource stop
+
+AddEventHandler('onResourceStop', function(resource)
+    if resource == GetCurrentResourceName() then
+        for i, _ in pairs(sessions) do
+            if sessions[i].place1 ~= 0 then
+                TriggerClientEvent('evy_arm:reset_cl', sessions[i].place1)
+            end
+            if sessions[i].place2 ~= 0 then
+                TriggerClientEvent('evy_arm:reset_cl', sessions[i].place2)
+            end
+            Wait(100)
+            resetSession(i)
+        end
+    end
+end)
 
 

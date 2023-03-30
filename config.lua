@@ -22,13 +22,9 @@ globalConfig = {
                                               -- 'bkr_prop_clubhouse_arm_wrestle_02a' --
 
   props = { 
-    
-
-
-    {x = 0, y = 0, z = 0, model = 'prop_arm_wrestle_01'},
-    {x = 0, y =0, z = 0, model = 'bkr_prop_clubhouse_arm_wrestle_01a'},
-    {x = 0, y = 0, z = 0, model = 'bkr_prop_clubhouse_arm_wrestle_02a'},
-
+    {coords = vector3(57.36, -850.63, 30.79), model = 'prop_arm_wrestle_01'},
+    {coords = vector3(48.45, -856.05, 30.7), model = 'bkr_prop_clubhouse_arm_wrestle_01a'},
+    {coords = vector3(41.84, -855.19, 30.69), model = 'bkr_prop_clubhouse_arm_wrestle_02a'},
 
   },
 
